@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Character } from '../db'
+import NpcRoster from '../components/NpcRoster'
 
 function newId() {
   return crypto.randomUUID()
@@ -141,11 +142,7 @@ export default function CampaignView() {
         </div>
       </section>
 
-      {/* NPCs placeholder */}
-      <section style={{ marginBottom: 48 }}>
-        <h2 style={{ margin: '0 0 16px' }}>NPCs</h2>
-        <p style={{ color: '#888' }}>NPC roster coming soon.</p>
-      </section>
+      <NpcRoster campaignId={campaignId!} />
 
       {/* Sessions placeholder */}
       <section>
