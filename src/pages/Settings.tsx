@@ -1,10 +1,7 @@
 import { useState } from 'react'
+import { API_KEY_STORAGE_KEY, getApiKey } from '../aiService'
 
-const API_KEY_STORAGE_KEY = 'claude-api-key'
-
-export function getApiKey(): string {
-  return localStorage.getItem(API_KEY_STORAGE_KEY) ?? ''
-}
+export { getApiKey }
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState(getApiKey)
