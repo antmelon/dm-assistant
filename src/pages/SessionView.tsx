@@ -21,7 +21,7 @@ export default function SessionView() {
   const campaign = useLiveQuery(() => db.campaigns.get(campaignId!), [campaignId])
 
   if (session === undefined || campaign === undefined) return null
-  if (session === null) return <p style={{ padding: 24 }}>Session not found.</p>
+  if (session === null) return <p className="page">Session not found.</p>
 
   async function handleAdvanceStatus() {
     const next = NEXT_STATUS[session!.status]
@@ -32,19 +32,18 @@ export default function SessionView() {
   const nextLabel = NEXT_LABEL[session.status]
 
   return (
-    <main style={{ maxWidth: 960, margin: '48px auto', padding: '0 24px' }}>
-      <button
-        onClick={() => navigate(`/campaigns/${campaignId}`)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: 14, padding: 0, marginBottom: 16 }}
-      >
-        ← {campaign?.name ?? 'Campaign'}
+    <main className="page">
+      <button className="ghost-back" onClick={() => navigate(`/campaigns/${campaignId}`)} style={{ marginBottom: 12 }}>
+        ← {campaign.name}
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
-        <h1 style={{ margin: 0 }}>{session.name}</h1>
-        <StatusBadge status={session.status} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32, flexWrap: 'wrap' }}>
+        <h1 style={{ fontSize: 22 }}>{session.name}</h1>
+        <span className={`badge badge-${session.status}`}>
+          {session.status === 'prep' ? 'Prep' : session.status === 'play' ? 'In Play' : 'Complete'}
+        </span>
         {nextLabel && (
-          <button onClick={handleAdvanceStatus} style={{ marginLeft: 'auto' }}>
+          <button className="primary" onClick={handleAdvanceStatus} style={{ marginLeft: 'auto' }}>
             {nextLabel}
           </button>
         )}
@@ -54,29 +53,11 @@ export default function SessionView() {
         <SessionPrepForm session={session} campaignId={campaignId!} />
       )}
       {session.status === 'play' && (
-        <p style={{ color: '#6b7280' }}>Play view with Quick Generate sidebar coming soon (issues #10–13).</p>
+        <p className="meta">Play view with Quick Generate sidebar coming soon (issues #10–13).</p>
       )}
       {session.status === 'complete' && (
-        <p style={{ color: '#6b7280' }}>Session complete. Summary and cleanup coming soon (issues #14–15).</p>
+        <p className="meta">Session complete. Summary and cleanup coming soon (issues #14–15).</p>
       )}
     </main>
-  )
-}
-
-function StatusBadge({ status }: { status: SessionStatus }) {
-  const styles: Record<SessionStatus, React.CSSProperties> = {
-    prep: { background: '#eff6ff', color: '#1e40af' },
-    play: { background: '#f0fdf4', color: '#166534' },
-    complete: { background: '#f3f4f6', color: '#6b7280' },
-  }
-  const labels: Record<SessionStatus, string> = {
-    prep: 'Prep',
-    play: 'In Play',
-    complete: 'Complete',
-  }
-  return (
-    <span style={{ fontSize: 12, padding: '3px 8px', borderRadius: 4, ...styles[status] }}>
-      {labels[status]}
-    </span>
   )
 }

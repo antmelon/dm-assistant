@@ -3,14 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type PrepNotes, type Session } from '../db'
 
 const STEPS: { key: keyof PrepNotes; label: string; placeholder: string }[] = [
-  { key: 'strongStart', label: '1. Strong Start', placeholder: 'How does the session begin? A bang, a hook, a revelation…' },
-  { key: 'scenes', label: '2. Scenes', placeholder: 'Potential scenes the players might move through…' },
-  { key: 'secretsAndClues', label: '3. Secrets & Clues', placeholder: 'Ten secrets or clues the players might uncover…' },
-  { key: 'fantasticLocations', label: '4. Fantastic Locations', placeholder: 'Evocative locations for the session…' },
-  { key: 'npcs', label: '5. NPCs', placeholder: 'Notable NPCs who might appear…' },
-  { key: 'monsters', label: '6. Monsters', placeholder: 'Monsters and their motivations…' },
-  { key: 'magicItems', label: '7. Magic Items', placeholder: 'Relevant magic items or rewards…' },
-  { key: 'characterReview', label: '8. Character Review', placeholder: 'Party members, their goals, backstory hooks…' },
+  { key: 'strongStart',        label: 'Strong Start',       placeholder: 'How does the session begin? A bang, a hook, a revelation…' },
+  { key: 'scenes',             label: 'Scenes',             placeholder: 'Potential scenes the players might move through…' },
+  { key: 'secretsAndClues',    label: 'Secrets & Clues',    placeholder: 'Ten secrets or clues the players might uncover…' },
+  { key: 'fantasticLocations', label: 'Fantastic Locations', placeholder: 'Evocative locations for the session…' },
+  { key: 'npcs',               label: 'NPCs',               placeholder: 'Notable NPCs who might appear…' },
+  { key: 'monsters',           label: 'Monsters',           placeholder: 'Monsters and their motivations…' },
+  { key: 'magicItems',         label: 'Magic Items',        placeholder: 'Relevant magic items or rewards…' },
+  { key: 'characterReview',    label: 'Character Review',   placeholder: 'Party members, their goals, backstory hooks…' },
 ]
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
 
 export default function SessionPrepForm({ session, campaignId }: Props) {
   const [notes, setNotes] = useState<PrepNotes>(session.prepNotes)
+  const [activeKey, setActiveKey] = useState<keyof PrepNotes | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const characters = useLiveQuery(
@@ -63,34 +64,165 @@ export default function SessionPrepForm({ session, campaignId }: Props) {
     handleChange('npcs', existing ? `${existing}\n${line}` : line)
   }
 
+  const filledCount = STEPS.filter(s => notes[s.key].trim()).length
+
   return (
     <div>
       {prevSession && prevSession.summary && (
-        <div style={prevSummaryStyle}>
-          <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#374151' }}>
-            Previous Session — {prevSession.name}
-          </p>
-          <p style={{ margin: 0, fontSize: 14, color: '#6b7280', whiteSpace: 'pre-wrap' }}>{prevSession.summary}</p>
+        <div className="form-panel" style={{ marginBottom: 24 }}>
+          <p className="label" style={{ marginBottom: 4 }}>Previous Session — {prevSession.name}</p>
+          <p className="meta" style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{prevSession.summary}</p>
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {STEPS.map(({ key, label, placeholder }) => (
-          <div key={key}>
-            <label style={labelStyle}>{label}</label>
-            <textarea
-              value={notes[key]}
-              onChange={e => handleChange(key, e.target.value)}
-              placeholder={placeholder}
-              rows={key === 'characterReview' ? 5 : 4}
-              style={textareaStyle}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span className="meta">{filledCount} of {STEPS.length} steps completed</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {STEPS.map(s => (
+            <div
+              key={s.key}
+              title={s.label}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: notes[s.key].trim() ? 'var(--blue-600)' : 'var(--gray-200)',
+                transition: 'background 0.2s',
+              }}
             />
-            {key === 'npcs' && campaignNpcs && campaignNpcs.length > 0 && (
-              <NpcDropdown npcs={campaignNpcs} onAdd={appendNpc} />
-            )}
-          </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {STEPS.map(({ key, label, placeholder }, i) => (
+          <PrepCard
+            key={key}
+            stepNum={i + 1}
+            label={label}
+            placeholder={placeholder}
+            value={notes[key]}
+            isActive={activeKey === key}
+            onActivate={() => setActiveKey(key)}
+            onBlur={() => setActiveKey(null)}
+            onChange={val => handleChange(key, val)}
+            npcPicker={key === 'npcs' && campaignNpcs && campaignNpcs.length > 0
+              ? <NpcDropdown npcs={campaignNpcs} onAdd={appendNpc} />
+              : null
+            }
+          />
         ))}
       </div>
+    </div>
+  )
+}
+
+interface PrepCardProps {
+  stepNum: number
+  label: string
+  placeholder: string
+  value: string
+  isActive: boolean
+  onActivate: () => void
+  onBlur: () => void
+  onChange: (val: string) => void
+  npcPicker: React.ReactNode
+}
+
+function PrepCard({ stepNum, label, placeholder, value, isActive, onActivate, onBlur, onChange, npcPicker }: PrepCardProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const filled = value.trim().length > 0
+
+  useEffect(() => {
+    if (isActive) textareaRef.current?.focus()
+  }, [isActive])
+
+  function handleCardBlur(e: React.FocusEvent) {
+    // only blur if focus leaves the whole card (including NPC dropdown)
+    if (cardRef.current && !cardRef.current.contains(e.relatedTarget as Node)) {
+      onBlur()
+    }
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      onBlur={handleCardBlur}
+      onClick={() => { if (!isActive) onActivate() }}
+      style={{
+        background: '#fff',
+        border: `1px solid ${isActive ? 'var(--blue-600)' : filled ? 'var(--gray-200)' : 'var(--gray-200)'}`,
+        borderRadius: 'var(--radius)',
+        boxShadow: isActive ? '0 0 0 3px rgba(37,99,235,0.1)' : 'var(--shadow-sm)',
+        cursor: isActive ? 'default' : 'pointer',
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Card header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: isActive ? '12px 16px 8px' : '12px 16px',
+      }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          fontSize: 11,
+          fontWeight: 700,
+          flexShrink: 0,
+          background: filled ? 'var(--blue-600)' : 'var(--gray-100)',
+          color: filled ? '#fff' : 'var(--gray-400)',
+          transition: 'background 0.2s, color 0.2s',
+        }}>
+          {filled ? '✓' : stepNum}
+        </span>
+        <span style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: filled ? 'var(--gray-900)' : 'var(--gray-500)',
+        }}>
+          {label}
+        </span>
+        {!isActive && filled && (
+          <span className="meta" style={{
+            marginLeft: 'auto',
+            fontSize: 12,
+            maxWidth: 260,
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+          }}>
+            {value.split('\n')[0]}
+          </span>
+        )}
+        {!isActive && !filled && (
+          <span className="meta" style={{ marginLeft: 'auto', fontSize: 12, fontStyle: 'italic' }}>
+            Click to add…
+          </span>
+        )}
+      </div>
+
+      {/* Edit area */}
+      {isActive && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={placeholder}
+            rows={5}
+            style={{ marginBottom: npcPicker ? 8 : 0 }}
+          />
+          {npcPicker}
+        </div>
+      )}
     </div>
   )
 }
@@ -127,94 +259,43 @@ function NpcDropdown({
   }
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', marginTop: 6 }}>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       <input
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
         placeholder="Add NPC from roster…"
-        style={dropdownInputStyle}
       />
       {open && filtered.length > 0 && (
-        <div style={dropdownListStyle}>
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0,
+          background: '#fff', border: '1px solid var(--gray-300)',
+          borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)',
+          zIndex: 20, maxHeight: 200, overflowY: 'auto', marginTop: 2,
+        }}>
           {filtered.map(npc => (
             <div
               key={npc.id}
               onMouseDown={() => select(npc)}
-              style={dropdownItemStyle}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 14 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-100)')}
               onMouseLeave={e => (e.currentTarget.style.background = '')}
             >
               <span style={{ fontWeight: 500 }}>{npc.name}</span>
-              {npc.role && <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 13 }}>{npc.role}</span>}
+              {npc.role && <span className="meta" style={{ marginLeft: 8 }}>{npc.role}</span>}
             </div>
           ))}
         </div>
       )}
       {open && filtered.length === 0 && query && (
-        <div style={{ ...dropdownListStyle, padding: '8px 12px', color: '#9ca3af', fontSize: 13 }}>
-          No NPCs match.
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2,
+          background: '#fff', border: '1px solid var(--gray-300)',
+          borderRadius: 'var(--radius)', padding: '8px 12px',
+        }}>
+          <span className="meta">No NPCs match.</span>
         </div>
       )}
     </div>
   )
-}
-
-const prevSummaryStyle: React.CSSProperties = {
-  background: '#f9fafb',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
-  padding: 16,
-  marginBottom: 32,
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 14,
-  fontWeight: 600,
-  color: '#374151',
-  marginBottom: 6,
-}
-
-const textareaStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 10px',
-  fontSize: 14,
-  boxSizing: 'border-box',
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  resize: 'vertical',
-  fontFamily: 'inherit',
-  lineHeight: 1.5,
-}
-
-const dropdownInputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '6px 10px',
-  fontSize: 13,
-  boxSizing: 'border-box',
-  border: '1px solid #e5e7eb',
-  borderRadius: 4,
-  color: '#374151',
-}
-
-const dropdownListStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  right: 0,
-  background: '#fff',
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  zIndex: 20,
-  maxHeight: 220,
-  overflowY: 'auto',
-  marginTop: 2,
-}
-
-const dropdownItemStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  cursor: 'pointer',
-  fontSize: 14,
 }
