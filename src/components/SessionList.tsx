@@ -98,7 +98,7 @@ export default function SessionList({ campaignId }: { campaignId: string }) {
         <p style={{ color: '#888' }}>No sessions yet.</p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto' }}>
         {sessions?.map(session => {
           const colors = STATUS_COLORS[session.status]
           return (

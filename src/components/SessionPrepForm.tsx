@@ -27,17 +27,18 @@ export default function SessionPrepForm({ session, campaignId }: Props) {
     [campaignId]
   )
 
+  const campaignNpcs = useLiveQuery(
+    () => db.npcs.where('campaignId').equals(campaignId).toArray(),
+    [campaignId]
+  )
+
   const prevSession = useLiveQuery(async () => {
-    const sessions = await db.sessions
-      .where('campaignId')
-      .equals(campaignId)
-      .toArray()
+    const sessions = await db.sessions.where('campaignId').equals(campaignId).toArray()
     return sessions
       .filter(s => s.status === 'complete' && s.date < session.date)
       .sort((a, b) => b.date - a.date)[0] ?? null
   }, [campaignId, session.date])
 
-  // Pre-populate Character Review from party if empty
   useEffect(() => {
     if (!characters || characters.length === 0) return
     if (notes.characterReview) return
@@ -56,12 +57,18 @@ export default function SessionPrepForm({ session, campaignId }: Props) {
     }, 500)
   }
 
+  function appendNpc(npc: { name: string; role: string }) {
+    const line = npc.role ? `${npc.name} — ${npc.role}` : npc.name
+    const existing = notes.npcs
+    handleChange('npcs', existing ? `${existing}\n${line}` : line)
+  }
+
   return (
     <div>
       {prevSession && prevSession.summary && (
         <div style={prevSummaryStyle}>
           <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#374151' }}>
-            Previous Session Summary — {prevSession.name}
+            Previous Session — {prevSession.name}
           </p>
           <p style={{ margin: 0, fontSize: 14, color: '#6b7280', whiteSpace: 'pre-wrap' }}>{prevSession.summary}</p>
         </div>
@@ -78,9 +85,77 @@ export default function SessionPrepForm({ session, campaignId }: Props) {
               rows={key === 'characterReview' ? 5 : 4}
               style={textareaStyle}
             />
+            {key === 'npcs' && campaignNpcs && campaignNpcs.length > 0 && (
+              <NpcDropdown npcs={campaignNpcs} onAdd={appendNpc} />
+            )}
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function NpcDropdown({
+  npcs,
+  onAdd,
+}: {
+  npcs: { id: string; name: string; role: string }[]
+  onAdd: (npc: { name: string; role: string }) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const filtered = query
+    ? npcs.filter(n => n.name.toLowerCase().includes(query.toLowerCase()))
+    : npcs
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  function select(npc: { id: string; name: string; role: string }) {
+    onAdd(npc)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', marginTop: 6 }}>
+      <input
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        placeholder="Add NPC from roster…"
+        style={dropdownInputStyle}
+      />
+      {open && filtered.length > 0 && (
+        <div style={dropdownListStyle}>
+          {filtered.map(npc => (
+            <div
+              key={npc.id}
+              onMouseDown={() => select(npc)}
+              style={dropdownItemStyle}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
+              <span style={{ fontWeight: 500 }}>{npc.name}</span>
+              {npc.role && <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 13 }}>{npc.role}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {open && filtered.length === 0 && query && (
+        <div style={{ ...dropdownListStyle, padding: '8px 12px', color: '#9ca3af', fontSize: 13 }}>
+          No NPCs match.
+        </div>
+      )}
     </div>
   )
 }
@@ -111,4 +186,35 @@ const textareaStyle: React.CSSProperties = {
   resize: 'vertical',
   fontFamily: 'inherit',
   lineHeight: 1.5,
+}
+
+const dropdownInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '6px 10px',
+  fontSize: 13,
+  boxSizing: 'border-box',
+  border: '1px solid #e5e7eb',
+  borderRadius: 4,
+  color: '#374151',
+}
+
+const dropdownListStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  background: '#fff',
+  border: '1px solid #d1d5db',
+  borderRadius: 6,
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+  zIndex: 20,
+  maxHeight: 220,
+  overflowY: 'auto',
+  marginTop: 2,
+}
+
+const dropdownItemStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  cursor: 'pointer',
+  fontSize: 14,
 }
