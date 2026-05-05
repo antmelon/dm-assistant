@@ -99,7 +99,7 @@ export default function CampaignView() {
           <p style={{ color: '#888' }}>No characters yet.</p>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 320, overflowY: 'auto' }}>
           {characters?.map(char => (
             <div key={char.id} style={cardStyle}>
               {editingChar?.id === char.id ? (

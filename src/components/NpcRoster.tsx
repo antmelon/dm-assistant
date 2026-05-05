@@ -71,7 +71,7 @@ export default function NpcRoster({ campaignId }: { campaignId: string }) {
         <p style={{ color: '#888' }}>No NPCs yet.</p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 320, overflowY: 'auto' }}>
         {npcs?.map(npc => (
           <div key={npc.id} style={cardStyle}>
             {editingNpc?.id === npc.id ? (
