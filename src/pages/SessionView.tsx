@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type SessionStatus } from '../db'
+import SessionPrepForm from '../components/SessionPrepForm'
 
 const NEXT_STATUS: Partial<Record<SessionStatus, SessionStatus>> = {
   prep: 'play',
@@ -50,7 +51,7 @@ export default function SessionView() {
       </div>
 
       {session.status === 'prep' && (
-        <p style={{ color: '#6b7280' }}>Session prep form coming soon (issue #6).</p>
+        <SessionPrepForm session={session} campaignId={campaignId!} />
       )}
       {session.status === 'play' && (
         <p style={{ color: '#6b7280' }}>Play view with Quick Generate sidebar coming soon (issues #10–13).</p>
