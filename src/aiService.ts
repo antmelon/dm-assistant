@@ -2,6 +2,16 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { ContextPayload } from './assembleContext'
 
 export const API_KEY_STORAGE_KEY = 'claude-api-key'
+export const MODEL_STORAGE_KEY = 'claude-model'
+
+export const AVAILABLE_MODELS = [
+  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — balanced (recommended)' },
+  { id: 'claude-haiku-4-5',  label: 'Haiku 4.5 — fastest, cheapest' },
+  { id: 'claude-opus-4-7',   label: 'Opus 4.7 — most capable, most expensive' },
+] as const
+
+export type ModelId = typeof AVAILABLE_MODELS[number]['id']
+export const DEFAULT_MODEL: ModelId = 'claude-sonnet-4-6'
 
 export type GenerationType =
   | 'npc'
@@ -46,6 +56,14 @@ const SYSTEM_PROMPTS: Record<GenerationType, string> = {
 
 export function getApiKey(): string {
   return localStorage.getItem(API_KEY_STORAGE_KEY) ?? ''
+}
+
+export function getModel(): ModelId {
+  const stored = localStorage.getItem(MODEL_STORAGE_KEY)
+  if (stored && AVAILABLE_MODELS.some(m => m.id === stored)) {
+    return stored as ModelId
+  }
+  return DEFAULT_MODEL
 }
 
 export class MissingApiKeyError extends Error {
@@ -117,7 +135,7 @@ export async function generate({ type, context, userPrompt }: GenerateOptions): 
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: getModel(),
     max_tokens: 4096,
     system: SYSTEM_PROMPTS[type],
     messages: [

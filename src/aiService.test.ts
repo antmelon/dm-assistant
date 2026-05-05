@@ -27,7 +27,10 @@ vi.stubGlobal('localStorage', localStorageMock)
 import {
   generate,
   getApiKey,
+  getModel,
   API_KEY_STORAGE_KEY,
+  MODEL_STORAGE_KEY,
+  DEFAULT_MODEL,
   MissingApiKeyError,
   type GenerationType,
 } from './aiService'
@@ -79,6 +82,37 @@ describe('getApiKey', () => {
   })
 })
 
+describe('getModel', () => {
+  it('returns the default model when nothing is stored', () => {
+    localStorageStore.delete(MODEL_STORAGE_KEY)
+    expect(getModel()).toBe(DEFAULT_MODEL)
+  })
+
+  it('returns the stored model when valid', () => {
+    localStorageStore.set(MODEL_STORAGE_KEY, 'claude-opus-4-7')
+    expect(getModel()).toBe('claude-opus-4-7')
+  })
+
+  it('falls back to default when stored value is unknown', () => {
+    localStorageStore.set(MODEL_STORAGE_KEY, 'gpt-4')
+    expect(getModel()).toBe(DEFAULT_MODEL)
+  })
+})
+
+describe('generate — model selection', () => {
+  it('uses the stored model in the request', async () => {
+    localStorageStore.set(MODEL_STORAGE_KEY, 'claude-haiku-4-5')
+    await generate({ type: 'npc', context: baseContext })
+    expect(createMock.mock.calls[0][0].model).toBe('claude-haiku-4-5')
+  })
+
+  it('uses the default model when none is stored', async () => {
+    localStorageStore.delete(MODEL_STORAGE_KEY)
+    await generate({ type: 'npc', context: baseContext })
+    expect(createMock.mock.calls[0][0].model).toBe(DEFAULT_MODEL)
+  })
+})
+
 describe('generate — API key handling', () => {
   it('passes the API key from localStorage to the SDK client', async () => {
     localStorageStore.set(API_KEY_STORAGE_KEY, 'sk-ant-specific')
@@ -111,7 +145,7 @@ describe('generate — request structure per type', () => {
     expect(createMock).toHaveBeenCalledOnce()
     const call = createMock.mock.calls[0][0]
 
-    expect(call.model).toBe('claude-opus-4-7')
+    expect(call.model).toBe('claude-sonnet-4-6')
     expect(typeof call.max_tokens).toBe('number')
     expect(typeof call.system).toBe('string')
     expect(call.system.length).toBeGreaterThan(20)
